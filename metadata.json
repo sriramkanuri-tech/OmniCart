@@ -1,0 +1,6 @@
+{
+  "name": "OmniCart",
+  "description": "The everything app for shopping, travel, food delivery, and payments.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

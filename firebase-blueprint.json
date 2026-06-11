@@ -1,0 +1,129 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with balances and metadata",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "avatar": { "type": "string" },
+        "balance": { "type": "number" },
+        "points": { "type": "number" }
+      },
+      "required": ["name", "email", "phone"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial ledger entry",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["in", "out"] },
+        "status": { "type": "string" }
+      },
+      "required": ["title", "amount", "type", "status"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Purchased food, travel, shopping or bills item",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string" },
+        "status": { "type": "string" },
+        "type": { "type": "string" },
+        "image": { "type": "string" }
+      },
+      "required": ["title", "amount", "status", "type"]
+    },
+    "Reward": {
+      "title": "Reward",
+      "description": "Active cached rewards or codes",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "desc": { "type": "string" },
+        "points": { "type": "number" },
+        "code": { "type": "string" },
+        "date": { "type": "string" },
+        "status": { "type": "string", "enum": ["Available", "Claimed"] }
+      },
+      "required": ["title", "desc", "points", "status"]
+    },
+    "BankAccount": {
+      "title": "BankAccount",
+      "description": "Linked bank account",
+      "type": "object",
+      "properties": {
+        "bankName": { "type": "string" },
+        "accountNumber": { "type": "string" },
+        "accountType": { "type": "string" },
+        "holderName": { "type": "string" }
+      },
+      "required": ["bankName", "accountNumber", "accountType", "holderName"]
+    },
+    "Card": {
+      "title": "Card",
+      "description": "Linked debit or credit card",
+      "type": "object",
+      "properties": {
+        "cardHolder": { "type": "string" },
+        "cardNumber": { "type": "string" },
+        "expiry": { "type": "string" },
+        "cvv": { "type": "string" },
+        "cardType": { "type": "string" }
+      },
+      "required": ["cardHolder", "cardNumber", "expiry", "cvv", "cardType"]
+    },
+    "Address": {
+      "title": "Address",
+      "description": "Delivery shipping address",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "street": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "zip": { "type": "string" },
+        "phone": { "type": "string" }
+      },
+      "required": ["name", "street", "city", "state", "zip", "phone"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Profile data of a registered user"
+    },
+    "users/{userId}/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Ledger of a user's financial activities"
+    },
+    "users/{userId}/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Shopping and delivery orders of a user"
+    },
+    "users/{userId}/rewards/{rewardId}": {
+      "schema": "Reward",
+      "description": "Loyalty program reward offerings of a user"
+    },
+    "users/{userId}/bankAccounts/{accountId}": {
+      "schema": "BankAccount",
+      "description": "Linked bank accounts of a user"
+    },
+    "users/{userId}/cards/{cardId}": {
+      "schema": "Card",
+      "description": "Linked cards of a user"
+    },
+    "users/{userId}/addresses/{addressId}": {
+      "schema": "Address",
+      "description": "Delivery/shipping addresses of a user"
+    }
+  }
+}

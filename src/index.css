@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Playfair Display", serif;
+
+  --color-background: #F8F9FA;
+  --color-on-background: #1A1A1A;
+  
+  --color-surface: #FFFFFF;
+  --color-surface-bright: #FFFFFF;
+  --color-surface-container-lowest: #FFFFFF;
+  --color-surface-container-low: #F8F9FA;
+  --color-surface-container: #F1F3F5;
+  --color-surface-container-high: #E9ECEF;
+  --color-surface-container-highest: #DEE2E6;
+  
+  --color-on-surface: #1A1A1A;
+  --color-on-surface-variant: #6C757D;
+  --color-outline: #E9ECEF;
+  --color-outline-variant: #F1F3F5;
+  
+  --color-primary: #7C3AED;
+  --color-on-primary: #FFFFFF;
+  --color-primary-container: #F3E8FF;
+  --color-on-primary-container: #7C3AED;
+  
+  --color-secondary: #EC4899;
+  --color-on-secondary: #FFFFFF;
+  --color-secondary-container: rgba(236, 72, 153, 0.15);
+  
+  --color-tertiary: #10B981;
+  --color-on-tertiary: #FFFFFF;
+  
+  --color-error: #EF4444;
+  --color-on-error: #FFFFFF;
+
+  --radius-xl: 1.5rem;
+  --radius-lg: 1rem;
+  --radius-md: 0.75rem;
+  --radius-sm: 0.5rem;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-on-background font-sans antialiased;
+  }
+  
+  h1, h2, h3, h4 {
+    @apply font-sans tracking-tight text-on-background;
+  }
+}
+
+.font-display {
+  font-family: var(--font-sans);
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.auth-gradient {
+  background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #A855F7 100%);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@layer utilities {
+  .animate-spin-slow {
+    animation: spin 12s linear infinite;
+  }
+}
