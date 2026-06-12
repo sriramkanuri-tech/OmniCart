@@ -1,0 +1,18 @@
+import { Router } from "express";
+import { adminController } from '../controllers/adminController.js';
+import { isAdmin } from '../middleware/isAdmin.js';
+const router = Router();
+router.use(isAdmin);
+router.get("/users", adminController.getUsers);
+router.get("/users/:email/orders", adminController.getUserOrders);
+router.get("/products", adminController.getProducts);
+router.post("/products", adminController.createProduct);
+router.put("/products/:id", adminController.updateProduct);
+router.delete("/products/:id", adminController.deleteProduct);
+router.get("/offers", adminController.getOffers);
+router.post("/offers", adminController.createOffer);
+router.put("/offers/:id", adminController.updateOffer);
+router.delete("/offers/:id", adminController.deleteOffer);
+router.get("/orders", adminController.getAllOrders);
+router.get("/stats", adminController.getStats);
+export default router;
