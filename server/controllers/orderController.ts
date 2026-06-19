@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
 import { orderStore } from '../store/orderStore';
-import { sendOrderConfirmationEmail } from '../services/emailService';
+import { sendOrderConfirmationEmail, sendAdminNotificationEmail } from '../services/emailService';
 
 export const orderController = {
   // POST /api/orders/create
-  createOrder(req: Request, res: Response) {
+  async createOrder(req: Request, res: Response) {
     try {
       const { 
         productId, productName, amount, userId, 
@@ -23,7 +23,7 @@ export const orderController = {
 
       console.log(`[OrderController] Creating pending order ${orderId} for product ${productName}`);
 
-      const pendingOrder = orderStore.createOrder({
+      const pendingOrder = await orderStore.createOrder({
         orderId,
         productId: productId || 'prod_generic',
         productName,
@@ -49,10 +49,10 @@ export const orderController = {
   },
 
   // GET /api/orders/status/:orderId
-  getOrder(req: Request, res: Response) {
+  async getOrder(req: Request, res: Response) {
     try {
       const { orderId } = req.params;
-      const order = orderStore.getOrderById(orderId);
+      const order = await orderStore.getOrderById(orderId);
 
       if (!order) {
         res.status(404).json({ success: false, error: 'Order not found' });
@@ -84,7 +84,7 @@ export const orderController = {
 
       console.log(`[OrderController] Backup saveOrder triggered for orderId: ${orderId}`);
 
-      let order = orderStore.getOrderById(orderId);
+      let order = await orderStore.getOrderById(orderId);
 
       if (order) {
         console.log(`[OrderController] Existing order found, current status: ${order.status}`);
@@ -94,7 +94,7 @@ export const orderController = {
           return;
         } else {
           // If order is PENDING, transition to PLACED
-          order = orderStore.saveOrUpdateOrder({
+          order = await orderStore.saveOrUpdateOrder({
             ...order,
             status: 'PLACED',
             uropayTransactionId: uropayTransactionId || order.uropayTransactionId || 'frontend_fallback_tx',
@@ -104,7 +104,7 @@ export const orderController = {
       } else {
         // If order does not exist at all, create as PLACED
         console.log(`[OrderController] Order ${orderId} does not exist in store, saving new PLACED order.`);
-        order = orderStore.saveOrUpdateOrder({
+        order = await orderStore.saveOrUpdateOrder({
           orderId,
           productId: req.body.productId || 'fallback_productId',
           productName: productName || 'OmniCart Product',
@@ -122,12 +122,16 @@ export const orderController = {
       }
 
       // Try sending email only if not yet sent
-      if (!order.emailSent) {
+      if (order && !order.emailSent) {
         console.log(`[OrderController] Sending confirmation email from backup mechanism...`);
         const emailSentResult = await sendOrderConfirmationEmail(order);
+        
+        // Also send admin notification
+        await sendAdminNotificationEmail(order);
+
         if (emailSentResult) {
           order.emailSent = true;
-          orderStore.saveOrUpdateOrder(order);
+          await orderStore.saveOrUpdateOrder(order);
           console.log(`[OrderController] order ID ${orderId} updated to emailSent = true.`);
         }
       } else {
@@ -142,7 +146,7 @@ export const orderController = {
   },
 
   // GET /api/orders/my-orders?email=user@gmail.com
-  getMyOrders(req: Request, res: Response) {
+  async getMyOrders(req: Request, res: Response) {
     try {
       const { email } = req.query;
 
@@ -151,7 +155,7 @@ export const orderController = {
         return;
       }
 
-      const orders = orderStore.getOrdersByEmail(email);
+      const orders = await orderStore.getOrdersByEmail(email);
       
       // Sort newest first
       orders.sort((a, b) => {

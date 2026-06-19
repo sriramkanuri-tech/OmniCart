@@ -1,129 +1,87 @@
 {
   "entities": {
-    "UserProfile": {
-      "title": "UserProfile",
-      "description": "User profile with balances and metadata",
+    "User": {
+      "title": "User",
+      "description": "System user for authentication and management",
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
         "email": { "type": "string" },
-        "phone": { "type": "string" },
-        "avatar": { "type": "string" },
-        "balance": { "type": "number" },
-        "points": { "type": "number" }
+        "name": { "type": "string" },
+        "password": { "type": "string" },
+        "role": { "type": "string", "enum": ["USER", "ADMIN"] }
       },
-      "required": ["name", "email", "phone"]
-    },
-    "Transaction": {
-      "title": "Transaction",
-      "description": "Financial ledger entry",
-      "type": "object",
-      "properties": {
-        "title": { "type": "string" },
-        "subtitle": { "type": "string" },
-        "amount": { "type": "number" },
-        "type": { "type": "string", "enum": ["in", "out"] },
-        "status": { "type": "string" }
-      },
-      "required": ["title", "amount", "type", "status"]
+      "required": ["email", "name", "role"]
     },
     "Order": {
       "title": "Order",
-      "description": "Purchased food, travel, shopping or bills item",
+      "description": "Product purchase order",
       "type": "object",
       "properties": {
-        "title": { "type": "string" },
-        "subtitle": { "type": "string" },
+        "orderId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "productName": { "type": "string" },
         "amount": { "type": "number" },
-        "date": { "type": "string" },
-        "status": { "type": "string" },
-        "type": { "type": "string" },
-        "image": { "type": "string" }
+        "category": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "PAID", "FAILED"] },
+        "createdAt": { "type": "string" },
+        "uropayStatus": { "type": "string" },
+        "emailSent": { "type": "boolean" }
       },
-      "required": ["title", "amount", "status", "type"]
+      "required": ["orderId", "userEmail", "status", "amount"]
     },
-    "Reward": {
-      "title": "Reward",
-      "description": "Active cached rewards or codes",
+    "Product": {
+      "title": "Product",
+      "description": "Store product",
       "type": "object",
       "properties": {
-        "title": { "type": "string" },
-        "desc": { "type": "string" },
-        "points": { "type": "number" },
-        "code": { "type": "string" },
-        "date": { "type": "string" },
-        "status": { "type": "string", "enum": ["Available", "Claimed"] }
-      },
-      "required": ["title", "desc", "points", "status"]
-    },
-    "BankAccount": {
-      "title": "BankAccount",
-      "description": "Linked bank account",
-      "type": "object",
-      "properties": {
-        "bankName": { "type": "string" },
-        "accountNumber": { "type": "string" },
-        "accountType": { "type": "string" },
-        "holderName": { "type": "string" }
-      },
-      "required": ["bankName", "accountNumber", "accountType", "holderName"]
-    },
-    "Card": {
-      "title": "Card",
-      "description": "Linked debit or credit card",
-      "type": "object",
-      "properties": {
-        "cardHolder": { "type": "string" },
-        "cardNumber": { "type": "string" },
-        "expiry": { "type": "string" },
-        "cvv": { "type": "string" },
-        "cardType": { "type": "string" }
-      },
-      "required": ["cardHolder", "cardNumber", "expiry", "cvv", "cardType"]
-    },
-    "Address": {
-      "title": "Address",
-      "description": "Delivery shipping address",
-      "type": "object",
-      "properties": {
+        "id": { "type": "string" },
         "name": { "type": "string" },
-        "street": { "type": "string" },
-        "city": { "type": "string" },
-        "state": { "type": "string" },
-        "zip": { "type": "string" },
-        "phone": { "type": "string" }
+        "price": { "type": "string" },
+        "rate": { "type": "number" },
+        "category": { "type": "string" },
+        "image": { "type": "string" },
+        "description": { "type": "string" },
+        "badge": { "type": "string" },
+        "rating": { "type": "string" },
+        "brand": { "type": "string" }
       },
-      "required": ["name", "street", "city", "state", "zip", "phone"]
+      "required": ["id", "name", "price", "rate", "category"]
+    },
+    "Offer": {
+      "title": "Offer",
+      "description": "Store offer/discount banner",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "discount": { "type": "string" },
+        "category": { "type": "string" },
+        "bannerImage": { "type": "string" },
+        "validUntil": { "type": "string" },
+        "badge": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "title", "discount", "active"]
     }
   },
   "firestore": {
-    "users/{userId}": {
-      "schema": "UserProfile",
-      "description": "Profile data of a registered user"
+    "users/{email}": {
+      "schema": "User",
+      "description": "Users collection keyed by email"
     },
-    "users/{userId}/transactions/{transactionId}": {
-      "schema": "Transaction",
-      "description": "Ledger of a user's financial activities"
-    },
-    "users/{userId}/orders/{orderId}": {
+    "orders/{orderId}": {
       "schema": "Order",
-      "description": "Shopping and delivery orders of a user"
+      "description": "All orders created in the system"
     },
-    "users/{userId}/rewards/{rewardId}": {
-      "schema": "Reward",
-      "description": "Loyalty program reward offerings of a user"
+    "products/{id}": {
+      "schema": "Product",
+      "description": "Products available in store"
     },
-    "users/{userId}/bankAccounts/{accountId}": {
-      "schema": "BankAccount",
-      "description": "Linked bank accounts of a user"
-    },
-    "users/{userId}/cards/{cardId}": {
-      "schema": "Card",
-      "description": "Linked cards of a user"
-    },
-    "users/{userId}/addresses/{addressId}": {
-      "schema": "Address",
-      "description": "Delivery/shipping addresses of a user"
+    "offers/{id}": {
+      "schema": "Offer",
+      "description": "Active promotional offers"
     }
   }
 }

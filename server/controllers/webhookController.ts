@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { orderStore } from '../store/orderStore';
-import { sendOrderConfirmationEmail } from '../services/emailService';
+import { sendOrderConfirmationEmail, sendAdminNotificationEmail } from '../services/emailService';
 
 export const webhookController = {
   // POST /api/webhook/uropay
@@ -32,11 +32,11 @@ export const webhookController = {
       console.log(`[Webhook] Processing orderId: ${orderId}, status: ${status}, txId: ${transactionId}`);
 
       if (status === 'SUCCESS' || status === 'PAID' || event === 'payment.success') {
-        let order = orderStore.getOrderById(orderId);
+        let order = await orderStore.getOrderById(orderId);
 
         if (!order) {
           console.log(`[Webhook] Order ${orderId} not found in store. Creating a new PLACED order from webhook payload.`);
-          order = orderStore.saveOrUpdateOrder({
+          order = await orderStore.saveOrUpdateOrder({
             orderId: orderId,
             productId: payload.productId || 'webhook_created',
             productName,
@@ -54,7 +54,7 @@ export const webhookController = {
         } else {
           console.log(`[Webhook] Order ${orderId} found. Current status: ${order.status}`);
           // Update order status and details if not already marked as PLACED
-          order = orderStore.saveOrUpdateOrder({
+          order = await orderStore.saveOrUpdateOrder({
             ...order,
             status: 'PLACED',
             uropayTransactionId: transactionId || order.uropayTransactionId,
@@ -63,12 +63,16 @@ export const webhookController = {
         }
 
         // Send confirmation email only if not already sent
-        if (!order.emailSent) {
+        if (order && !order.emailSent) {
           console.log(`[Webhook] Sending confirmation email for order ${orderId}...`);
           const emailSentResult = await sendOrderConfirmationEmail(order);
+          
+          // Also send admin notification
+          await sendAdminNotificationEmail(order);
+
           if (emailSentResult) {
             order.emailSent = true;
-            orderStore.saveOrUpdateOrder(order);
+            await orderStore.saveOrUpdateOrder(order);
             console.log(`[Webhook] order ID ${orderId} marked as emailSent = true.`);
           } else {
             console.log(`[Webhook] order ID ${orderId} email sending failed.`);

@@ -2,8 +2,9 @@ import { Request, Response } from 'express';
 import { userStore } from '../store/userStore';
 import { orderStore, Order } from '../store/orderStore';
 import { v4 as uuidv4 } from 'uuid';
+import { getFirestore } from '../lib/firebaseAdmin';
 
-// Seed Products in memory
+// Types
 export interface Product {
   id: string;
   name: string;
@@ -15,6 +16,18 @@ export interface Product {
   badge?: string;
   rating: string;
   brand: string;
+}
+
+export interface Offer {
+  id: string;
+  title: string;
+  description: string;
+  discount: string;
+  category: string;
+  bannerImage: string;
+  validUntil: string;
+  badge: string;
+  active: boolean;
 }
 
 const initialProducts: Product[] = [
@@ -92,18 +105,6 @@ const initialProducts: Product[] = [
   }
 ];
 
-export interface Offer {
-  id: string;
-  title: string;
-  description: string;
-  discount: string;
-  category: string;
-  bannerImage: string;
-  validUntil: string;
-  badge: string;
-  active: boolean;
-}
-
 const initialOffers: Offer[] = [
   {
     id: 'off-1',
@@ -129,41 +130,48 @@ const initialOffers: Offer[] = [
   }
 ];
 
-class AdminMemoryDb {
-  products: Product[] = [...initialProducts];
-  offers: Offer[] = [...initialOffers];
-}
-
-const dbInstance = new AdminMemoryDb();
-
 export const adminController = {
   // Users Management
-  getUsers(req: Request, res: Response) {
-    const users = userStore.getUsers();
+  async getUsers(req: Request, res: Response) {
+    const users = await userStore.getUsers();
     res.json(users);
   },
 
-  getUserOrders(req: Request, res: Response) {
+  async getUserOrders(req: Request, res: Response) {
     const { email } = req.params;
-    const allOrders = orderStore.getAllOrders();
+    const allOrders = await orderStore.getAllOrders();
     const matching = allOrders.filter(o => o.userEmail === email);
     res.json(matching);
   },
 
   // Products Management
-  getProducts(req: Request, res: Response) {
-    res.json(dbInstance.products);
+  async getProducts(req: Request, res: Response) {
+    const db = getFirestore();
+    const snapshot = await db.collection('products').get();
+    let products = snapshot.docs.map(doc => doc.data() as Product);
+    
+    // Seed if empty
+    if (products.length === 0) {
+      console.log('[AdminController] Seeding initial products to Firestore...');
+      for (const p of initialProducts) {
+        await db.collection('products').doc(p.id).set(p);
+      }
+      products = [...initialProducts];
+    }
+    res.json(products);
   },
 
-  createProduct(req: Request, res: Response) {
+  async createProduct(req: Request, res: Response) {
+    const db = getFirestore();
     const { name, price, category, image, description, badge, rating, brand } = req.body;
     if (!name || !price || !category) {
        res.status(400).json({ error: 'Missing required fields' });
        return;
     }
     const rate = parseFloat(String(price).replace(/[^0-9.]/g, '')) || 0;
+    const id = 'prod-' + uuidv4().substring(0, 8);
     const newProd: Product = {
-      id: 'prod-' + uuidv4().substring(0, 8),
+      id,
       name,
       price: price.startsWith('₹') ? price : `₹ ${parseFloat(price).toLocaleString('en-IN')}`,
       rate,
@@ -174,51 +182,63 @@ export const adminController = {
       rating: rating || '4.5',
       brand: brand || 'OmniCart'
     };
-    dbInstance.products.push(newProd);
+    await db.collection('products').doc(id).set(newProd);
     res.status(201).json(newProd);
   },
 
-  updateProduct(req: Request, res: Response) {
+  async updateProduct(req: Request, res: Response) {
     const { id } = req.params;
-    const idx = dbInstance.products.findIndex(p => p.id === id);
-    if (idx === -1) {
+    const db = getFirestore();
+    const doc = await db.collection('products').doc(id).get();
+    if (!doc.exists) {
        res.status(404).json({ error: 'Product not found' });
        return;
     }
-    const rate = parseFloat(String(req.body.price).replace(/[^0-9.]/g, '')) || dbInstance.products[idx].rate;
-    dbInstance.products[idx] = {
-      ...dbInstance.products[idx],
+    const existing = doc.data() as Product;
+    const rate = req.body.price ? (parseFloat(String(req.body.price).replace(/[^0-9.]/g, '')) || existing.rate) : existing.rate;
+    const updatedProd = {
+      ...existing,
       ...req.body,
       rate,
-      price: req.body.price ? (req.body.price.startsWith('₹') ? req.body.price : `₹ ${parseFloat(req.body.price).toLocaleString('en-IN')}`) : dbInstance.products[idx].price
+      price: req.body.price ? (req.body.price.startsWith('₹') ? req.body.price : `₹ ${parseFloat(req.body.price).toLocaleString('en-IN')}`) : existing.price
     };
-    res.json(dbInstance.products[idx]);
+    await db.collection('products').doc(id).update(updatedProd);
+    res.json(updatedProd);
   },
 
-  deleteProduct(req: Request, res: Response) {
+  async deleteProduct(req: Request, res: Response) {
     const { id } = req.params;
-    const idx = dbInstance.products.findIndex(p => p.id === id);
-    if (idx === -1) {
-       res.status(404).json({ error: 'Product not found' });
-       return;
-    }
-    dbInstance.products.splice(idx, 1);
+    const db = getFirestore();
+    await db.collection('products').doc(id).delete();
     res.json({ success: true });
   },
 
   // Offers Management
-  getOffers(req: Request, res: Response) {
-    res.json(dbInstance.offers);
+  async getOffers(req: Request, res: Response) {
+    const db = getFirestore();
+    const snapshot = await db.collection('offers').get();
+    let offers = snapshot.docs.map(doc => doc.data() as Offer);
+    
+    if (offers.length === 0) {
+      console.log('[AdminController] Seeding initial offers to Firestore...');
+      for (const o of initialOffers) {
+        await db.collection('offers').doc(o.id).set(o);
+      }
+      offers = [...initialOffers];
+    }
+    res.json(offers);
   },
 
-  createOffer(req: Request, res: Response) {
+  async createOffer(req: Request, res: Response) {
+    const db = getFirestore();
     const { title, description, discount, category, bannerImage, validUntil, badge } = req.body;
     if (!title || !description || !discount) {
        res.status(400).json({ error: 'Missing title, description or discount' });
        return;
     }
+    const id = 'off-' + uuidv4().substring(0, 8);
     const newOffer: Offer = {
-      id: 'off-' + uuidv4().substring(0, 8),
+      id,
       title,
       description,
       discount,
@@ -228,45 +248,40 @@ export const adminController = {
       badge: badge || 'EXCLUSIVE',
       active: true
     };
-    dbInstance.offers.push(newOffer);
+    await db.collection('offers').doc(id).set(newOffer);
     res.status(201).json(newOffer);
   },
 
-  updateOffer(req: Request, res: Response) {
+  async updateOffer(req: Request, res: Response) {
     const { id } = req.params;
-    const idx = dbInstance.offers.findIndex(o => o.id === id);
-    if (idx === -1) {
+    const db = getFirestore();
+    const doc = await db.collection('offers').doc(id).get();
+    if (!doc.exists) {
        res.status(404).json({ error: 'Offer not found' });
        return;
     }
-    dbInstance.offers[idx] = {
-      ...dbInstance.offers[idx],
-      ...req.body
-    };
-    res.json(dbInstance.offers[idx]);
+    const updatedOffer = { ...doc.data(), ...req.body };
+    await db.collection('offers').doc(id).update(updatedOffer);
+    res.json(updatedOffer);
   },
 
-  deleteOffer(req: Request, res: Response) {
+  async deleteOffer(req: Request, res: Response) {
     const { id } = req.params;
-    const idx = dbInstance.offers.findIndex(o => o.id === id);
-    if (idx === -1) {
-       res.status(404).json({ error: 'Offer not found' });
-       return;
-    }
-    dbInstance.offers.splice(idx, 1);
+    const db = getFirestore();
+    await db.collection('offers').doc(id).delete();
     res.json({ success: true });
   },
 
   // Retrieve All Orders across all users
-  getAllOrders(req: Request, res: Response) {
-    const allOrders = orderStore.getAllOrders();
+  async getAllOrders(req: Request, res: Response) {
+    const allOrders = await orderStore.getAllOrders();
     res.json(allOrders);
   },
 
   // Dashboard Stats
-  getStats(req: Request, res: Response) {
-    const allOrders = orderStore.getAllOrders();
-    const allUsers = userStore.getUsers();
+  async getStats(req: Request, res: Response) {
+    const allOrders = await orderStore.getAllOrders();
+    const allUsers = await userStore.getUsers();
 
     const totalUsers = allUsers.length;
     const totalOrders = allOrders.length;
@@ -278,7 +293,7 @@ export const adminController = {
     // Today's stats calculation
     const todayStr = new Date().toISOString().substring(0, 10);
     const todayOrdersList = allOrders.filter(o => {
-      const orderDate = o.placedAt || new Date().toISOString();
+      const orderDate = o.placedAt || o.createdAt || new Date().toISOString();
       return orderDate.substring(0, 10) === todayStr;
     });
 
@@ -296,10 +311,8 @@ export const adminController = {
     };
 
     allOrders.forEach(o => {
-      // Map generic statuses or manual checkout categories
-      // @ts-ignore
-      let cat = o.type || 'Shopping'; // fallback
-      if (cat === 'shopping' || cat === 'Watches' || cat === 'Audio' || cat === 'Beauty' || cat === 'Furniture') {
+      let cat = o.category || 'Shopping'; // fallback
+      if (cat === 'shopping' || cat === 'Watches' || cat === 'Audio' || cat === 'Beauty' || cat === 'Furniture' || cat === 'Shopping') {
         categoryMap.Shopping += o.amount;
       } else if (cat === 'food' || cat === 'Food' || cat === 'Pure Veg' || cat === 'Pizza' || cat === 'Biryani' || cat === 'Burgers') {
         categoryMap.Food += o.amount;
@@ -316,7 +329,7 @@ export const adminController = {
     }));
 
     res.json({
-      totalUsers: totalUsers > 0 ? totalUsers : 1, // fallback so visuals aren't fully blank
+      totalUsers: totalUsers > 0 ? totalUsers : 1,
       totalOrders: totalOrders > 0 ? totalOrders : 3,
       totalRevenue: totalRevenue > 0 ? totalRevenue : 15450,
       todayOrders: todayOrders > 0 ? todayOrders : 1,

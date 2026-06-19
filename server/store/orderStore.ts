@@ -1,3 +1,5 @@
+import { getFirestore } from '../lib/firebaseAdmin';
+
 export interface Order {
   orderId: string;
   productId?: string;
@@ -15,38 +17,45 @@ export interface Order {
 }
 
 class OrderStore {
-  private orders: Map<string, Order> = new Map();
+  private collectionName = 'orders';
 
-  createOrder(orderData: Order): Order {
-    const existing = this.orders.get(orderData.orderId);
-    if (existing) {
+  async createOrder(orderData: Order): Promise<Order> {
+    const db = getFirestore();
+    const orderRef = db.collection(this.collectionName).doc(orderData.orderId);
+    const doc = await orderRef.get();
+    
+    if (doc.exists) {
       console.log(`[Store] createOrder called for existing order: ${orderData.orderId}. Returning existing.`);
-      return existing;
+      return doc.data() as Order;
     }
+    
     const newOrder: Order = {
       ...orderData,
       status: orderData.status || 'PENDING',
       createdAt: orderData.createdAt || new Date().toISOString(),
       emailSent: orderData.emailSent || false,
     };
-    this.orders.set(orderData.orderId, newOrder);
+    await orderRef.set(newOrder);
     console.log(`[Store] Created order ${orderData.orderId} with status ${newOrder.status}`);
     return newOrder;
   }
 
-  saveOrUpdateOrder(orderData: Order): Order {
-    const existing = this.orders.get(orderData.orderId);
-    if (existing) {
+  async saveOrUpdateOrder(orderData: Order): Promise<Order> {
+    const db = getFirestore();
+    const orderRef = db.collection(this.collectionName).doc(orderData.orderId);
+    const doc = await orderRef.get();
+    
+    if (doc.exists) {
+      const existing = doc.data() as Order;
       const updatedOrder: Order = {
         ...existing,
         ...orderData,
-        // Ensure we don't accidentally revert a "PLACED" order to "PENDING"
         status: (existing.status === 'PLACED' && orderData.status === 'PENDING') ? 'PLACED' : orderData.status,
         placedAt: orderData.status === 'PLACED' ? (existing.placedAt || orderData.placedAt || new Date().toISOString()) : existing.placedAt,
         uropayTransactionId: orderData.uropayTransactionId || existing.uropayTransactionId,
         emailSent: orderData.emailSent !== undefined ? orderData.emailSent : existing.emailSent,
       };
-      this.orders.set(orderData.orderId, updatedOrder);
+      await orderRef.update(updatedOrder as any);
       console.log(`[Store] Updated order ${orderData.orderId}, status is now: ${updatedOrder.status}`);
       return updatedOrder;
     } else {
@@ -56,27 +65,33 @@ class OrderStore {
         placedAt: orderData.status === 'PLACED' ? (orderData.placedAt || new Date().toISOString()) : undefined,
         emailSent: orderData.emailSent || false,
       };
-      this.orders.set(orderData.orderId, newOrder);
+      await orderRef.set(newOrder);
       console.log(`[Store] Saved new order ${orderData.orderId} with status: ${newOrder.status}`);
       return newOrder;
     }
   }
 
-  getOrderById(orderId: string): Order | undefined {
-    return this.orders.get(orderId);
+  async getOrderById(orderId: string): Promise<Order | undefined> {
+    const db = getFirestore();
+    const doc = await db.collection(this.collectionName).doc(orderId).get();
+    return doc.exists ? (doc.data() as Order) : undefined;
   }
 
-  getOrdersByEmail(email: string): Order[] {
-    return Array.from(this.orders.values())
-      .filter(order => order.userEmail.toLowerCase() === email.toLowerCase());
+  async getOrdersByEmail(email: string): Promise<Order[]> {
+    const db = getFirestore();
+    const snapshot = await db.collection(this.collectionName)
+      .where('userEmail', '==', email)
+      .get();
+    return snapshot.docs.map(doc => doc.data() as Order);
   }
 
-  getAllOrders(): Order[] {
-    return Array.from(this.orders.values());
+  async getAllOrders(): Promise<Order[]> {
+    const db = getFirestore();
+    const snapshot = await db.collection(this.collectionName).get();
+    return snapshot.docs.map(doc => doc.data() as Order);
   }
 
-  // Forward compatibility / backwards compatibility helper
-  saveOrder(orderData: Order): Order {
+  async saveOrder(orderData: Order): Promise<Order> {
     return this.saveOrUpdateOrder(orderData);
   }
 }

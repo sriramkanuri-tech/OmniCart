@@ -1,25 +1,35 @@
+import { getFirestore } from '../lib/firebaseAdmin';
+
 export interface UserTrack {
   email: string;
   name: string;
   photo: string;
   loginCount: number;
-  lastLogin: Date;
-  createdAt: Date;
+  lastLogin: any; // Firestore timestamp or string
+  createdAt: any;
 }
 
 class UserStore {
-  private users: Map<string, UserTrack> = new Map();
+  private collectionName = 'users';
 
-  trackLogin(email: string, name: string, photo: string) {
+  async trackLogin(email: string, name: string, photo: string) {
     if (!email) return;
-    const existing = this.users.get(email);
+    const db = getFirestore();
+    const userRef = db.collection(this.collectionName).doc(email);
+    const doc = await userRef.get();
+    
     const now = new Date();
-    if (existing) {
-      existing.loginCount += 1;
-      existing.lastLogin = now;
-      existing.name = name || existing.name;
-      existing.photo = photo || existing.photo;
-      this.users.set(email, existing);
+    if (doc.exists) {
+      const data = doc.data() as UserTrack;
+      const updatedUser = {
+        ...data,
+        loginCount: (data.loginCount || 0) + 1,
+        lastLogin: now,
+        name: name || data.name,
+        photo: photo || data.photo,
+      };
+      await userRef.update(updatedUser);
+      return updatedUser;
     } else {
       const newUser: UserTrack = {
         email,
@@ -29,17 +39,21 @@ class UserStore {
         lastLogin: now,
         createdAt: now,
       };
-      this.users.set(email, newUser);
+      await userRef.set(newUser);
+      return newUser;
     }
-    return this.users.get(email);
   }
 
-  getUsers(): UserTrack[] {
-    return Array.from(this.users.values());
+  async getUsers(): Promise<UserTrack[]> {
+    const db = getFirestore();
+    const snapshot = await db.collection(this.collectionName).get();
+    return snapshot.docs.map(doc => doc.data() as UserTrack);
   }
 
-  getUser(email: string): UserTrack | undefined {
-    return this.users.get(email);
+  async getUser(email: string): Promise<UserTrack | undefined> {
+    const db = getFirestore();
+    const doc = await db.collection(this.collectionName).doc(email).get();
+    return doc.exists ? (doc.data() as UserTrack) : undefined;
   }
 }
 

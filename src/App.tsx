@@ -25,6 +25,7 @@ import AdminUsers from './pages/admin/AdminUsers';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminOffers from './pages/admin/AdminOffers';
 import AdminOrders from './pages/admin/AdminOrders';
+import EmailDiagnostics from './pages/admin/EmailDiagnostics';
 import './index.css';
 
 // Stub pages
@@ -78,6 +79,7 @@ function App() {
               <Route path="/admin/products" element={<AdminProducts />} />
               <Route path="/admin/offers" element={<AdminOffers />} />
               <Route path="/admin/orders" element={<AdminOrders />} />
+              <Route path="/admin/email-test" element={<EmailDiagnostics />} />
             </Route>
           </Route>
           
